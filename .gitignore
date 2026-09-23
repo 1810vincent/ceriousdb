@@ -1,0 +1,22 @@
+# database on-disk file
+.cdb
+
+# config environment file
+.env
+
+# ceriousapi.a lib files (& directories)
+lib/
+
+# ceriousdb binary files (& directories)
+bin/
+
+# test binary files (& directories)
+tests/unit/bin/
+
+# clang
+.cache/
+compile_commands.json
+
+# object and dependency files
+*.o
+*.d

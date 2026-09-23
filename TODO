@@ -1,0 +1,10 @@
+- ceriousapi: turn the thread-per-request model into a thread pool
+- ceriousapi: make server routing more robust -> dont allow multiple route definitions for the same path
+- ceriousapi: listen to a 2nd socket for a simple custom protocol besides http (for cli tool)
+- ceriousdb: make cache_flush a background task -> create dedecated thread
+- ceriousdb: implement user-server interface
+- ceriousdb: implement non-blocking i/o / seperate thread for uptime & user input in user-server interface
+- ceriousdb-cli: add a client-side cli (simple custom protocol)
+- str_dictionary: implement arena heap allocator / management
+- str_dictionary: maybe implement a better collision algorithm (?)
+- str_dictionary: cleanup insert() function (e.g. find_insert_index() implementation)
