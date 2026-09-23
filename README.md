@@ -102,7 +102,7 @@ CeriousDB is structured into modular C99 components, drawing conceptual parallel
 
 ---
 
-### AI Disclaimer
+## AI Disclaimer
 Certain modules and utility functions in this project were generated or assisted by AI (Google Gemini 3.5):
 * **`README.md`**
 * **`Makefile`**
