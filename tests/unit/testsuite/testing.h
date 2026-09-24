@@ -32,9 +32,9 @@
 *       functions prefixed with 'testing_internal_' are
 *       module-internal-only and should never be accessed!
 *
-* @note the framework is fully thread-safe. you can safely create 
-*       multiple threads inside test_function and call 
-*       test_assert() concurrently from all of them.
+* @note the framework is fully thread-safe. multiple threads can safely 
+*       be created outside and inside test_function. test_assert()
+*       can safely be called concurrently from all of them.
 *
 * @warning since this test-framework's test_assert() function is non-aborting,
 *          it does not protect from any exceptions or segmentation faults
@@ -53,7 +53,10 @@
 * @brief evaluates the boolean expression
 *
 * @details evaluates the boolean expression, prints the evaluation &
-*          registers the outcome internally
+*          registers the outcome internally.
+*
+* @note non-aborting:
+*       this function will never abort the thread!
 *
 * @param[in] expression the boolean expression to be evaluated
 * @param[in] print_expr specifies whether expression should be printed
@@ -70,7 +73,7 @@
 *
 * @details calls test_function, prints a resulting evaluation of all tests
 *          (test_assert() calls) made in test_function & returns the
-*          amount of failed tests, or UINT64_MAX on error
+*          amount of failed tests
 *
 * @param[in] test_function the test implementing function which will be called
 *
@@ -85,10 +88,10 @@
 #include <stdbool.h>
 
 
-#define TESTING_INTERNAL_RESET "\33[0m"
-#define TESTING_INTERNAL_CYAN "\33[36m"
-#define TESTING_INTERNAL_GREEN "\33[32m"
-#define TESTING_INTERNAL_RED "\33[31m"
+#define TESTING_INTERNAL_RESET  "\33[0m"
+#define TESTING_INTERNAL_CYAN   "\33[36m"
+#define TESTING_INTERNAL_GREEN  "\33[32m"
+#define TESTING_INTERNAL_RED    "\33[31m"
 
 
 #ifndef TESTING_DEFINE
