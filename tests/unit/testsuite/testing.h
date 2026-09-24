@@ -56,7 +56,7 @@
 *          registers the outcome internally.
 *
 * @note non-aborting:
-*       this function will never abort the thread!
+*       this function will never abort the process / thread!
 *
 * @param[in] expression the boolean expression to be evaluated
 * @param[in] print_expr specifies whether expression should be printed
