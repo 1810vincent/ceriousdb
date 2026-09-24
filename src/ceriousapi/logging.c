@@ -30,7 +30,7 @@ static inline log_type get_loglevel_fromstring(const char* level_string) {
         return ERROR;
     char error_msg[MAX_LOGLEVELERRORMSG_LEN];
     snprintf(error_msg, sizeof(error_msg), "could not correctly get log level from .env, invalid log level: %s, fallback to level: %s", level_string, "INFO");
-    ceriousapi_log_server_error(error_msg, SERVERNAME);
+    ceriousapi_log_server_error(error_msg, CERIOUSAPINAME);
     return INFO;
 }
 

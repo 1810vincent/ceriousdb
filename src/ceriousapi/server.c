@@ -53,22 +53,22 @@ int32_t respond(int client, int32_t status_code, const char* body, send_body sen
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
         "%s",
-        HTTP_VERSION, status, SERVERNAME, body_len, HEAD_BODY_DIVIDER);
+        HTTP_VERSION, status, CERIOUSAPINAME, body_len, HEAD_BODY_DIVIDER);
 
     if (header_len < 0 || (size_t)header_len >= sizeof(header_buffer)) {
         close(client);
-        return ceriousapi_relog_server_error("could not load http header into buffer - intended http header is too big for dedicated header buffer", SERVERNAME);
+        return ceriousapi_relog_server_error("could not load http header into buffer - intended http header is too big for dedicated header buffer", CERIOUSAPINAME);
     }
 
     if (write(client, header_buffer, header_len) < (int)0) {
         close(client);
-        return ceriousapi_relog_server_error("could not write http header buffer to client socket", SERVERNAME);
+        return ceriousapi_relog_server_error("could not write http header buffer to client socket", CERIOUSAPINAME);
     }
 
     if (body && send_body && body_len > 0) {
         if (write(client, body, body_len) < 0) {
             close(client);
-            return ceriousapi_relog_server_error("could not write http body to client socket", SERVERNAME);
+            return ceriousapi_relog_server_error("could not write http body to client socket", CERIOUSAPINAME);
         }
     }
 
@@ -79,7 +79,7 @@ int32_t respond(int client, int32_t status_code, const char* body, send_body sen
 
 int32_t ceriousapi_setopt(const char* new_host, int32_t new_port, const char* log_level) {
     if (!new_host || !log_level)
-        return ceriousapi_relog_server_error("could not set ceriousapi server options", SERVERNAME);
+        return ceriousapi_relog_server_error("could not set ceriousapi server options", CERIOUSAPINAME);
     strncpy(host, new_host, sizeof(host) - 1);
     port = new_port;
     ceriousapi_set_log_level(log_level);
@@ -89,7 +89,7 @@ int32_t ceriousapi_setopt(const char* new_host, int32_t new_port, const char* lo
 
 int32_t ceriousapi_setroute(const char* path, head_func head_f, get_func get_f, put_func put_f, delete_func delete_f) {
     if (route_count >= MAX_ROUTES_AMOUNT)
-        return ceriousapi_relog_server_error("maximum of programmable routes reached", SERVERNAME);
+        return ceriousapi_relog_server_error("maximum of programmable routes reached", CERIOUSAPINAME);
 
     if (!path || (strcmp(path, "") == 0))
         path = "/";
@@ -112,7 +112,7 @@ static int32_t parse_requestline(int32_t client, char* path, char* method, char*
     char request_line[MAX_PATH_LEN + MAX_METHOD_STRLEN + MAX_KEY_LEN + MAX_VALUE_LEN + 1];
     ssize_t bytes_read = read(client, request_line, sizeof(request_line) - 1);
     if (bytes_read <= 0) {
-        return ceriousapi_relog_server_error("could not read from client socket", SERVERNAME);
+        return ceriousapi_relog_server_error("could not read from client socket", CERIOUSAPINAME);
     }
     request_line[bytes_read] = '\0';
 
@@ -123,7 +123,7 @@ static int32_t parse_requestline(int32_t client, char* path, char* method, char*
     /* parse method */
     char* method_token = strtok(request_line, " ");
     if (!method_token)
-        return ceriousapi_relog_server_error("no method token", SERVERNAME);
+        return ceriousapi_relog_server_error("no method token", CERIOUSAPINAME);
     else if (strcmp(method_token, HTTPM(HEAD)) == 0)
         snprintf(method, MAX_METHOD_STRLEN, "%s", HTTPM(HEAD));
     else if (strcmp(method_token, HTTPM(GET)) == 0)
@@ -133,7 +133,7 @@ static int32_t parse_requestline(int32_t client, char* path, char* method, char*
     else if (strcmp(method_token, HTTPM(DELETE)) == 0)
         snprintf(method, MAX_METHOD_STRLEN, "%s", HTTPM(DELETE));
     else
-        ceriousapi_log_server_error("request has unsupported http method", SERVERNAME);
+        ceriousapi_log_server_error("request has unsupported http method", CERIOUSAPINAME);
 
     /* parse path */
     char* path_token = strtok(NULL, " ");
@@ -150,36 +150,36 @@ static int32_t parse_requestline(int32_t client, char* path, char* method, char*
 
 static int32_t execute_function(int32_t client, char* path, char* method, char* key, char* value) {
     if (client == 0)
-        return ceriousapi_relog_server_error("could not execute function - client is not given", SERVERNAME);
+        return ceriousapi_relog_server_error("could not execute function - client is not given", CERIOUSAPINAME);
     if (!path)
-        return ceriousapi_relog_server_error("could not execute function - path is not given", SERVERNAME);
+        return ceriousapi_relog_server_error("could not execute function - path is not given", CERIOUSAPINAME);
     if (!method)
-        return ceriousapi_relog_server_error("could not execute function - method is not given", SERVERNAME);
+        return ceriousapi_relog_server_error("could not execute function - method is not given", CERIOUSAPINAME);
     
     for (int32_t i = 0; i < route_count; i++) {
         if (strcmp(path, routes[i].path) == 0) {
             if (strcmp(method, HTTPM(HEAD)) == 0) {
                 if (!routes[i].head)
-                    return ceriousapi_relog_server_error("server route with unmapped http method got called", SERVERNAME);
+                    return ceriousapi_relog_server_error("server route with unmapped http method got called", CERIOUSAPINAME);
                 return routes[i].head(client, key);
             }
             else if (strcmp(method, HTTPM(GET)) == 0) {
                 if (!routes[i].get)
-                    return ceriousapi_relog_server_error("server route with unmapped http method got called", SERVERNAME);
+                    return ceriousapi_relog_server_error("server route with unmapped http method got called", CERIOUSAPINAME);
                 return routes[i].get(client, key);
             }
             else if (strcmp(method, HTTPM(PUT)) == 0) {
                 if (!routes[i].put)
-                    return ceriousapi_relog_server_error("server route with unmapped http method got called", SERVERNAME);
+                    return ceriousapi_relog_server_error("server route with unmapped http method got called", CERIOUSAPINAME);
                 return routes[i].put(client, key, value);
             }
             else if (strcmp(method, HTTPM(DELETE)) == 0) {
                 if (!routes[i].delete)
-                    return ceriousapi_relog_server_error("server route with unmapped http method got called", SERVERNAME);
+                    return ceriousapi_relog_server_error("server route with unmapped http method got called", CERIOUSAPINAME);
                 return routes[i].delete(client, key);
             }
             else
-                return ceriousapi_relog_server_error("server route with unmapped http method got called", SERVERNAME);
+                return ceriousapi_relog_server_error("server route with unmapped http method got called", CERIOUSAPINAME);
         }
     }
     return (int32_t)-1;
@@ -187,7 +187,7 @@ static int32_t execute_function(int32_t client, char* path, char* method, char* 
 
 static void* process_single_request(void* arg) {
     if (!arg)
-        return ceriousapi_rnlog_server_error("worker thread could not receive arg", SERVERNAME);
+        return ceriousapi_rnlog_server_error("worker thread could not receive arg", CERIOUSAPINAME);
     int32_t client = *(int32_t*)arg;
     free(arg);
 
@@ -198,12 +198,12 @@ static void* process_single_request(void* arg) {
 
     if (parse_requestline(client, path, method, key, value) == -1) {
         close(client);
-        return ceriousapi_rnlog_server_error("could not parse request line", SERVERNAME);
+        return ceriousapi_rnlog_server_error("could not parse request line", CERIOUSAPINAME);
     }
     
     if (execute_function(client, path, method, key, value) == -1) {
         close(client);
-        return ceriousapi_rnlog_server_error("error while executing method", SERVERNAME);
+        return ceriousapi_rnlog_server_error("error while executing method", CERIOUSAPINAME);
     }
 
     return NULL;
@@ -214,15 +214,15 @@ static void* process_single_request(void* arg) {
 static void* server_loop(__attribute__((unused)) void* arg) {
     char startup_msg[MAX_STARTUPMSG_LEN];
     snprintf(startup_msg, MAX_STARTUPMSG_LEN, "server running and accessible at [ http://%s:%i ]", host, port);
-    ceriousapi_log_server_info(startup_msg, SERVERNAME);
+    ceriousapi_log_server_info(startup_msg, CERIOUSAPINAME);
 
     int32_t client;
     while ((client = accept(server, 0, 0)) >= 0) {
-        ceriousapi_log_server_info("request received", SERVERNAME);
+        ceriousapi_log_server_info("request received", CERIOUSAPINAME);
         
         int32_t* clientptr = (int32_t*)malloc(sizeof(*clientptr));
         if (!clientptr) {
-            ceriousapi_log_server_error("could not allocate memory for server loop thread arg", SERVERNAME);
+            ceriousapi_log_server_error("could not allocate memory for server loop thread arg", CERIOUSAPINAME);
             close(client);
             continue;
         }
@@ -230,14 +230,14 @@ static void* server_loop(__attribute__((unused)) void* arg) {
 
         pthread_t worker_thread;
         if (pthread_create(&worker_thread, NULL, process_single_request, clientptr) != 0) {
-            ceriousapi_log_server_error("could not create worker thread", SERVERNAME);
+            ceriousapi_log_server_error("could not create worker thread", CERIOUSAPINAME);
             free(clientptr);
             close(client);
             continue;
         }
 
         if (pthread_detach(worker_thread) != 0) {
-            ceriousapi_log_server_error("could not detach worker thread", SERVERNAME);
+            ceriousapi_log_server_error("could not detach worker thread", CERIOUSAPINAME);
             pthread_join(worker_thread, NULL);
             continue;
         }
@@ -247,7 +247,7 @@ static void* server_loop(__attribute__((unused)) void* arg) {
 
 pthread_t ceriousapi_startserver() {
     if ((server = (int32_t)socket(AF_INET, SOCK_STREAM, 0)) == (int32_t)-1)
-        return ceriousapi_rzlog_server_error("could not create the server's socket ", SERVERNAME);
+        return ceriousapi_rzlog_server_error("could not create the server's socket ", CERIOUSAPINAME);
 
     struct sockaddr_in address = {
         .sin_family = AF_INET,
@@ -256,17 +256,17 @@ pthread_t ceriousapi_startserver() {
     };
 
     if (bind(server, (struct sockaddr*)&address, sizeof(address)) == (int)-1)
-        return (pthread_t)ceriousapi_rzlog_server_error("could not bind the server to the address", SERVERNAME);
+        return (pthread_t)ceriousapi_rzlog_server_error("could not bind the server to the address", CERIOUSAPINAME);
     
     if (listen(server, SOMAXCONN) == (int)-1)
-        return (pthread_t)ceriousapi_rzlog_server_error("could not prepare the server to accept incoming connections", SERVERNAME);
+        return (pthread_t)ceriousapi_rzlog_server_error("could not prepare the server to accept incoming connections", CERIOUSAPINAME);
 
     pthread_t server_thread;
     if (pthread_create(&server_thread, NULL, server_loop, NULL) != 0)
-        return (pthread_t)ceriousapi_rzlog_server_error("could not create server loop thread", SERVERNAME);
+        return (pthread_t)ceriousapi_rzlog_server_error("could not create server loop thread", CERIOUSAPINAME);
 
     if (pthread_detach(server_thread) != 0)
-        return (pthread_t)ceriousapi_rzlog_server_error("could not detach server loop thread", SERVERNAME);
+        return (pthread_t)ceriousapi_rzlog_server_error("could not detach server loop thread", CERIOUSAPINAME);
 
     return server_thread;
 }
@@ -336,6 +336,6 @@ static void get_statusstring(char* status_string, int32_t status_code, size_t ma
         case 511: snprintf(status_string, max_len, "%i Network Authentication Required", status_code); return;
         default:
             snprintf(status_string, max_len, "500 Internal Server Error");
-            return ceriousapi_log_server_warning("invalid status code passed by application, falling back to 500", SERVERNAME);
+            return ceriousapi_log_server_warning("invalid status code passed by application, falling back to 500", CERIOUSAPINAME);
     }
 }
