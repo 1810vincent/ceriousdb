@@ -47,7 +47,7 @@ int32_t respond(int32_t client, int32_t status_code, const char* body, send_body
 *
 * @return int32_t   returns 0 on success, -1 on error
 */
-int32_t ceriousapi_setopt(const char* host, int32_t port, const char* log_level);
+int32_t ceriousapi_setopt(const char* host, int32_t port, char* log_level);
 
 
 #define MAX_ROUTES_AMOUNT 512

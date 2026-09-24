@@ -77,12 +77,12 @@ int32_t respond(int client, int32_t status_code, const char* body, send_body sen
 }
 
 
-int32_t ceriousapi_setopt(const char* new_host, int32_t new_port, const char* log_level) {
+int32_t ceriousapi_setopt(const char* new_host, int32_t new_port, char* log_level) {
     if (!new_host || !log_level)
         return ceriousapi_relog_server_error("could not set ceriousapi server options", CERIOUSAPINAME);
     strncpy(host, new_host, sizeof(host) - 1);
     port = new_port;
-    ceriousapi_set_log_level(log_level);
+    ceriousapi_log_set_level(log_level);
     return (int32_t)0;
 }
 

@@ -1,152 +1,207 @@
+#ifndef _POSIX_C_SOURCE
+    #define _POSIX_C_SOURCE 200112L
+#endif
+
 #include <ceriousapi/ceriousapi.h>
 
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 
+#if !defined(_WIN32) && !defined(_WIN64) /* unix */
+
+    #include <pthread.h>
+
+
+    static pthread_mutex_t setlevel_mutex = PTHREAD_MUTEX_INITIALIZER;
+    
+    #define lock_set()   pthread_mutex_lock(&setlevel_mutex)
+    #define unlock_set() pthread_mutex_unlock(&setlevel_mutex)
+
+#else /* windows */
+
+    #include <windows.h>
+
+
+    static SRWLOCK setlevel_mutex = SRWLOCK_INIT;
+
+    #define lock_set()   AcquireSRWLockExclusive(&setlevel_mutex)
+    #define unlock_set() ReleaseSRWLockExclusive(&setlevel_mutex)
+
+#endif
+
+
 typedef enum { ERROR, WARNING, INFO } log_type;
+
 
 static log_type log_level = INFO;
 
-static inline const char* stringoftype(log_type type) {
+
+static inline char* stringof_logtype(log_type type) {
     switch (type) {
-        case INFO: return "INFO";
-        case WARNING: return "WARNING";
-        case ERROR: return "ERROR";
-        default: return "UNKNOWN";
+        case INFO:      return "INFO";
+        case WARNING:   return "WARNING";
+        case ERROR:     return "ERROR";
+        default:        return "UNKNOWN";
     }
 }
 
-#define MAX_LOGLEVELERRORMSG_LEN 1024
+static inline void to_upper(char* str) {
+    for (size_t i = (size_t)0UL; str[i] != '\0'; i++) {
+        if ((str[i] >= 'a') && (str[i] <= 'z'))
+            str[i] -= ('v' - 'V');
+    }
+    return;
+}
 
-static inline log_type get_loglevel_fromstring(const char* level_string) {
-    if (strcmp(level_string, stringoftype(INFO)) == 0)
+static log_type get_log_level_print_error(char* level_string) {
+    if (!level_string)
         return INFO;
-    if (strcmp(level_string, stringoftype(WARNING)) == 0)
-        return WARNING;
-    if (strcmp(level_string, stringoftype(ERROR)) == 0)
-        return ERROR;
-    char error_msg[MAX_LOGLEVELERRORMSG_LEN];
-    snprintf(error_msg, sizeof(error_msg), "could not correctly get log level from .env, invalid log level: %s, fallback to level: %s", level_string, "INFO");
+    char error_msg[1024];
+    snprintf(error_msg, sizeof(error_msg), "could not correctly get log level - invalid log level: %s, fallback to default log level: %s", level_string, stringof_logtype(INFO));
     ceriousapi_log_server_error(error_msg, CERIOUSAPINAME);
     return INFO;
 }
 
-void ceriousapi_set_log_level(const char* level) {
-    log_level = get_loglevel_fromstring(level);
+static log_type get_log_level_from_string(char* level_string) {
+    if (!level_string)
+        return get_log_level_print_error("...");
+
+    char level_string_copy[128];
+    int32_t written = (int32_t)snprintf(level_string_copy, sizeof(level_string_copy), "%s", level_string);
+    if (written < 0) {
+        return get_log_level_print_error(level_string);
+    }
+
+    to_upper(level_string_copy);
+
+    if (strcmp(level_string_copy, "INFO") == 0)
+        return INFO;
+    if (strcmp(level_string_copy, "WARNING") == 0)
+        return WARNING;
+    if (strcmp(level_string_copy, "ERROR") == 0)
+        return ERROR;
+
+    return get_log_level_print_error(level_string);
+}
+
+void ceriousapi_log_set_level(char* level) {
+    lock_set();
+    log_level = get_log_level_from_string(level);
+    unlock_set();
+    return;
 }
 
 
-#define MAX_TIMESTAMP_STRLEN 128
-#define TIMESTAMP_FALLBACK ""
+#define TIMESTAMP_BUFFER_SIZE 256
+#define TIMESTAMP_FALLBACK "..."
 
-static char* get_timestamp_fstring() {
-    char* timestamp_fstring = (char*)malloc(MAX_TIMESTAMP_STRLEN * sizeof(*timestamp_fstring));
-    if (!timestamp_fstring)
-        return TIMESTAMP_FALLBACK;
-
+static int32_t get_timestamp_fstring(char* buffer) {
     time_t rawtime;
-    time(&rawtime);
-
-    struct tm* timeinfo = localtime(&rawtime);
-    if (!timeinfo) {
-        free(timestamp_fstring);
-        return TIMESTAMP_FALLBACK;
+    if (time(&rawtime) == (time_t)-1) {
+        strncpy(buffer, TIMESTAMP_FALLBACK, TIMESTAMP_BUFFER_SIZE);
+        return (int32_t)-1;
     }
 
-    if (strftime(timestamp_fstring, MAX_TIMESTAMP_STRLEN, "%Y-%m-%d %H:%M:%S %Z", timeinfo) == 0) {
-        free(timestamp_fstring);
-        return TIMESTAMP_FALLBACK;
+    struct tm timeinfo;
+
+#if !defined(_WIN32) && !defined(_WIN64) /* unix */
+    if (!localtime_r(&rawtime, &timeinfo)) {
+#else /* windows */
+    if (localtime_s(&timeinfo, &rawtime) != 0) {
+#endif
+        strncpy(buffer, TIMESTAMP_FALLBACK, TIMESTAMP_BUFFER_SIZE);
+        return (int32_t)-1;
     }
-    return timestamp_fstring;
+
+    if (strftime(buffer, TIMESTAMP_BUFFER_SIZE, "%Y-%m-%d %H:%M:%S %Z", &timeinfo) == 0) {
+        snprintf(buffer, TIMESTAMP_BUFFER_SIZE, "...");
+        return (int32_t)-1;
+    }
+    return (int32_t)0;
 }
 
-static inline const char* cstringoftype(log_type type) {
+static inline const char* color_stringof_type(log_type type) {
     switch (type) {
-        case INFO: return "\33[34mINFO\33[0m";
-        case WARNING: return "\33[33mWARNING\33[0m";
-        case ERROR: return "\33[31mERROR\33[0m";
-        default: return "\33[33mUNKNOWN\33[0m";
+        case INFO:      return "\33[34mINFO\33[0m";
+        case WARNING:   return "\33[33mWARNING\33[0m";
+        case ERROR:     return "\33[31mERROR\33[0m";
+        default:        return "\33[36mUNKNOWN\33[0m";
     }
 }
 
-/* does not interrupt the interface's output when server is running */
-static void log_server_message(log_type type, const char* msg, const char* module, char* timestamp) {
+static void log_server_message(log_type type, const char* msg, const char* module) {
     if (type > log_level)
         return;
 
-    if (!timestamp)
-        timestamp = TIMESTAMP_FALLBACK;
+    char timestamp[TIMESTAMP_BUFFER_SIZE];
+    if (get_timestamp_fstring(timestamp) == (int32_t)-1)
+        snprintf(timestamp, TIMESTAMP_BUFFER_SIZE, "...");
 
     FILE* fp = ((type == WARNING) || (type == ERROR)) ? stderr : stdout;
 
     if (msg && module)
-        fprintf(fp, "\r\33[2K[%s] %s | server/%s: %s\n", cstringoftype(type), timestamp, module, msg);
+        fprintf(fp, "\r\33[2K[%s] %s | server/%s: %s\n", color_stringof_type(type), timestamp, module, msg);
     else if (msg && !module)
-        fprintf(fp, "\r\33[2K[%s] %s | server: %s\n", cstringoftype(type), timestamp, msg);
+        fprintf(fp, "\r\33[2K[%s] %s | server: %s\n", color_stringof_type(type), timestamp, msg);
     else if (!msg && module)
-        fprintf(fp, "\r\33[2K[%s] %s | server/%s\n", cstringoftype(type), timestamp, module);
+        fprintf(fp, "\r\33[2K[%s] %s | server/%s\n", color_stringof_type(type), timestamp, module);
     else
-        fprintf(fp, "\r\33[2K[%s] %s | server\n", cstringoftype(type), timestamp);
+        fprintf(fp, "\r\33[2K[%s] %s | server\n", color_stringof_type(type), timestamp);
 
     return;
 }
 
 
 void ceriousapi_log_server_error(const char* msg, const char* module) {
-    char* timestamp = get_timestamp_fstring();
-    log_server_message(ERROR, msg, module, timestamp);
-    if (!(strcmp(timestamp, TIMESTAMP_FALLBACK) == 0))
-        free(timestamp);
+    log_server_message(ERROR, msg, module);
     return;
 }
 
 int32_t ceriousapi_relog_server_error(const char* msg, const char* module) {
-    ceriousapi_log_server_error(msg, module);
+    log_server_message(ERROR, msg, module);
     return (int32_t)-1;
 }
 
 int32_t ceriousapi_rpelog_server_error(const char* msg, const char* module) {
-    ceriousapi_log_server_error(msg, module);
-    return (int32_t)-1;
+    log_server_message(ERROR, msg, module);
+    return (int32_t)1;
 }
 
 uint32_t ceriousapi_rzlog_server_error(const char* msg, const char* module) {
-    ceriousapi_log_server_error(msg, module);
-    return (uint32_t)0;
+    log_server_message(ERROR, msg, module);
+    return (uint32_t)0U;
 }
 
 void* ceriousapi_rnlog_server_error(const char* msg, const char* module) {
-    ceriousapi_log_server_error(msg, module);
+    log_server_message(ERROR, msg, module);
     return NULL;
 }
 
 
 void ceriousapi_log_server_info(const char* msg, const char* module) {
-    char* timestamp = get_timestamp_fstring();
-    log_server_message(INFO, msg, module, timestamp);
-    if (!(strcmp(timestamp, TIMESTAMP_FALLBACK) == 0))
-        free(timestamp);
+    log_server_message(INFO, msg, module);
     return;
 }
 
 bool ceriousapi_rtlog_server_info(const char* msg, const char* module) {
-    ceriousapi_log_server_info(msg, module);
+    log_server_message(INFO, msg, module);
     return true;
 }
 
 int32_t ceriousapi_rzlog_server_info(const char* msg, const char* module) {
-    ceriousapi_log_server_info(msg, module);
+    log_server_message(INFO, msg, module);
     return (int32_t)0;
 }
 
 
 void ceriousapi_log_server_warning(const char* msg, const char* module) {
-    char* timestamp = get_timestamp_fstring();
-    log_server_message(WARNING, msg, module, timestamp);
-    if (!(strcmp(timestamp, TIMESTAMP_FALLBACK) == 0))
-        free(timestamp);
+    log_server_message(WARNING, msg, module);
     return;
 }
