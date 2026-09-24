@@ -52,6 +52,11 @@ void test_get_env_invalid_name(void) {
 }
 
 
+/*
+* load_dotenv() is implicitely tested by all other load_dotenv_f() tests,
+* since load_dotenv() just calls load_dotenv_f() with the '.env' file
+*/
+
 /* calls load_dotenv_f with NULL -> should return -1 */
 void test_load_dotenv_f_filepath_null(void) {
     test_assert((load_dotenv_f(NULL, DO_OVERWRITE) == (int32_t)-1), true);
@@ -271,6 +276,14 @@ void test_load_dotenv_f_valid_key23(void) {
     test_assert((strcmp(get_env("'\"EXAMPLE_MIXED_TRIPLE_QUOTE_KEY\"'", ""), "\"'EXAMPLE_MIXED_TRIPLE_QUOTE_VALUE'\"") == 0), true);
 }
 
+/* checks for valid keys which have comments with quotes as well (key 24 & 25) */
+void test_load_dotenv_f_valid_quote_comments(void) {
+    test_assert((strcmp(get_env("EXAMPLE_COMMENT_QUOTE_KEY", ""), "EXAMPLE_COMMENT_QUOTE_VALUE") == 0), true);
+    test_assert((strcmp(get_env("EXAMPLE_COMMENT_QUOTE_KEY", ""), "NOT_EXAMPLE_COMMENT_QUOTE_VALUE") != 0), true);
+    test_assert((strcmp(get_env("EXAMPLE_COMMENT_SINGLE_QUOTE_KEY", ""), "EXAMPLE_COMMENT_SINGLE_QUOTE_VALUE") == 0), true);
+    test_assert((strcmp(get_env("EXAMPLE_COMMENT_SINGLE_QUOTE_KEY", ""), "NOT_EXAMPLE_COMMENT_SINGLE_QUOTE_VALUE") != 0), true);
+}
+
 
 /* checks for not overwriting with load_dotenv */
 void test_load_dotenv_f_valid_no_overwrite(void) {
@@ -292,6 +305,7 @@ void test(void) {
     test_load_dotenv_f_empty();
     test_load_dotenv_f_corrupted_valid_first();
     test_load_dotenv_f_corrupted_valid_last();
+    test_load_dotenv_f_corrupted_valid_surround();
     test_load_dotenv_f_corrupted1();
     test_load_dotenv_f_corrupted2();
     test_load_dotenv_f_corrupted3();
@@ -325,6 +339,7 @@ void test(void) {
     test_load_dotenv_f_valid_key21();
     test_load_dotenv_f_valid_key22();
     test_load_dotenv_f_valid_key23();
+    test_load_dotenv_f_valid_quote_comments();
 
     test_load_dotenv_f_valid_no_overwrite();
 }
