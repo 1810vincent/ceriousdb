@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
-#include <ceriousapi/logging.h>
+#include <ceriousapi/ceriousapi.h>
 #include "../dotenv/dotenv.h"
 
 #define PORT_DEFAULT_STR "8000"

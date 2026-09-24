@@ -2,7 +2,7 @@
 
 #include "interface.h"
 
-#include <ceriousapi/logging.h>
+#include <ceriousapi/ceriousapi.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>

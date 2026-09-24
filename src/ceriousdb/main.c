@@ -6,7 +6,6 @@
 #include <stdlib.h>
 
 #include <ceriousapi/ceriousapi.h>
-#include <ceriousapi/logging.h>
 
 #include "cache.h"
 #include "config.h"

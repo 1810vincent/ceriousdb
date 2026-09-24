@@ -1,5 +1,4 @@
 #include <ceriousapi/ceriousapi.h>
-#include <ceriousapi/logging.h>
 
 #include <arpa/inet.h>
 #include <pthread.h>

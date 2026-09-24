@@ -1,5 +1,4 @@
 #include <ceriousapi/ceriousapi.h>
-#include <ceriousapi/logging.h>
 
 #include <stdio.h>
 #include <stdlib.h>
