@@ -1,7 +1,9 @@
 #include <ceriousapi/ceriousapi.h>
 
-#include <arpa/inet.h>
+
+#include <stdint.h>
 #include <pthread.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,8 +11,8 @@
 #include <unistd.h>
 
 
-/* configs (default values) */
-static char host[INET6_ADDRSTRLEN] = "127.0.0.1\0";
+/* server configs (default values) */
+static char host[INET6_ADDRSTRLEN] = "127.0.0.1";
 static int32_t port = (int32_t)8000;
 
 
@@ -29,57 +31,9 @@ static route routes[MAX_ROUTES_AMOUNT];
 static int32_t route_count = 0;
 
 
-#define HTTPM(METHOD) #METHOD
-#define MAX_METHOD_STRLEN 7
-
-
-#define HTTP_VERSION "HTTP/1.1"
-#define MAX_STATUS_LEN 64
-#define HEAD_BODY_DIVIDER "\r\n\r\n"
-
-static void get_statusstring(char* status_string, int32_t status_code, size_t max_len);
-
-int32_t respond(int client, int32_t status_code, const char* body, send_body send_body) {
-    char status[MAX_STATUS_LEN];
-    get_statusstring(status, status_code, sizeof(status));
-
-    size_t body_len = (body && send_body) ? strlen(body) : (size_t)0L;
-
-    char header_buffer[MAX_RESPONSE_HEADER_LEN];
-    int header_len = snprintf(header_buffer, sizeof(header_buffer),
-        "%s %s\r\n"
-        "Server: %s\r\n"
-        "Content-Type: text/plain; charset=utf-8\r\n"
-        "Content-Length: %zu\r\n"
-        "Connection: close\r\n"
-        "%s",
-        HTTP_VERSION, status, CERIOUSAPINAME, body_len, HEAD_BODY_DIVIDER);
-
-    if (header_len < 0 || (size_t)header_len >= sizeof(header_buffer)) {
-        close(client);
-        return ceriousapi_relog_server_error("could not load http header into buffer - intended http header is too big for dedicated header buffer", CERIOUSAPINAME);
-    }
-
-    if (write(client, header_buffer, header_len) < (int)0) {
-        close(client);
-        return ceriousapi_relog_server_error("could not write http header buffer to client socket", CERIOUSAPINAME);
-    }
-
-    if (body && send_body && body_len > 0) {
-        if (write(client, body, body_len) < 0) {
-            close(client);
-            return ceriousapi_relog_server_error("could not write http body to client socket", CERIOUSAPINAME);
-        }
-    }
-
-    close(client);
-    return (int32_t)0;
-}
-
-
-int32_t ceriousapi_setopt(const char* new_host, int32_t new_port, char* log_level) {
+int32_t ceriousapi_setconf(const char* new_host, int32_t new_port, char* log_level) {
     if (!new_host || !log_level)
-        return ceriousapi_relog_server_error("could not set ceriousapi server options", CERIOUSAPINAME);
+        return ceriousapi_relog_server_error("could not set ceriousapi server / logging configurations", CERIOUSAPINAME);
     strncpy(host, new_host, sizeof(host) - 1);
     port = new_port;
     ceriousapi_log_set_level(log_level);
@@ -88,14 +42,13 @@ int32_t ceriousapi_setopt(const char* new_host, int32_t new_port, char* log_leve
 
 
 int32_t ceriousapi_setroute(const char* path, head_func head_f, get_func get_f, put_func put_f, delete_func delete_f) {
-    if (route_count >= MAX_ROUTES_AMOUNT)
+    if (route_count > MAX_ROUTES_AMOUNT)
         return ceriousapi_relog_server_error("maximum of programmable routes reached", CERIOUSAPINAME);
 
-    if (!path || (strcmp(path, "") == 0))
+    if (!path || (path[0] == '\0'))
         path = "/";
 
     strncpy(routes[route_count].path, path, MAX_PATH_LEN - 1);
-    routes[route_count].path[MAX_PATH_LEN - 1] = '\0';
     
     routes[route_count].head = head_f;
     routes[route_count].get = get_f;
@@ -103,8 +56,13 @@ int32_t ceriousapi_setroute(const char* path, head_func head_f, get_func get_f, 
     routes[route_count].delete = delete_f;
 
     route_count++;
+
     return (int32_t)0;
 }
+
+
+#define HTTPM(METHOD) #METHOD
+#define MAX_METHOD_STRLEN 7
 
 
 static int32_t parse_requestline(int32_t client, char* path, char* method, char* key, char* value) {
@@ -181,6 +139,8 @@ static int32_t execute_function(int32_t client, char* path, char* method, char* 
             else
                 return ceriousapi_relog_server_error("server route with unmapped http method got called", CERIOUSAPINAME);
         }
+        else
+            return ceriousapi_relog_server_error("server route with unmapped path got called", CERIOUSAPINAME);
     }
     return (int32_t)-1;
 }
@@ -262,13 +222,57 @@ pthread_t ceriousapi_startserver() {
         return (pthread_t)ceriousapi_rzlog_server_error("could not prepare the server to accept incoming connections", CERIOUSAPINAME);
 
     pthread_t server_thread;
-    if (pthread_create(&server_thread, NULL, server_loop, NULL) != 0)
+    if (pthread_create(&server_thread, NULL, server_loop, NULL) != (int)0)
         return (pthread_t)ceriousapi_rzlog_server_error("could not create server loop thread", CERIOUSAPINAME);
 
-    if (pthread_detach(server_thread) != 0)
+    if (pthread_detach(server_thread) != (int)0)
         return (pthread_t)ceriousapi_rzlog_server_error("could not detach server loop thread", CERIOUSAPINAME);
 
     return server_thread;
+}
+
+
+#define HTTP_VERSION "HTTP/1.1"
+#define MAX_STATUS_LEN 64
+#define HEAD_BODY_DIVIDER "\r\n\r\n"
+
+static void get_statusstring(char* status_string, int32_t status_code, size_t max_len);
+
+int32_t respond(int client, int32_t status_code, const char* body) {
+    char status[MAX_STATUS_LEN];
+    get_statusstring(status, status_code, sizeof(status));
+
+    size_t body_len = body ? strlen(body) : (size_t)0UL;
+
+    char header_buffer[MAX_RESPONSE_HEADER_LEN];
+    int header_len = snprintf(header_buffer, sizeof(header_buffer),
+        "%s %s\r\n"
+        "Server: %s\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Content-Length: %zu\r\n"
+        "Connection: close\r\n"
+        "%s",
+        HTTP_VERSION, status, CERIOUSAPINAME, body_len, HEAD_BODY_DIVIDER);
+
+    if (header_len < 0 || (size_t)header_len >= sizeof(header_buffer)) {
+        close(client);
+        return ceriousapi_relog_server_error("could not load http header into buffer - intended http header is too big for dedicated header buffer", CERIOUSAPINAME);
+    }
+
+    if (write(client, header_buffer, header_len) < (int)0) {
+        close(client);
+        return ceriousapi_relog_server_error("could not write http header buffer to client socket", CERIOUSAPINAME);
+    }
+
+    if (body && body_len > 0) {
+        if (write(client, body, body_len) < 0) {
+            close(client);
+            return ceriousapi_relog_server_error("could not write http body to client socket", CERIOUSAPINAME);
+        }
+    }
+
+    close(client);
+    return (int32_t)0;
 }
 
 
@@ -336,6 +340,6 @@ static void get_statusstring(char* status_string, int32_t status_code, size_t ma
         case 511: snprintf(status_string, max_len, "%i Network Authentication Required", status_code); return;
         default:
             snprintf(status_string, max_len, "500 Internal Server Error");
-            return ceriousapi_log_server_warning("invalid status code passed by application, falling back to 500", CERIOUSAPINAME);
+            return ceriousapi_log_server_warning("invalid status code passed by server application, falling back to 500", CERIOUSAPINAME);
     }
 }

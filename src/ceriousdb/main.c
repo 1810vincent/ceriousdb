@@ -19,8 +19,8 @@ cache* db_cache;
 int32_t head(int32_t client, const char* key) {
     const char* value = cache_get(db_cache, key, NULL);
     if (value == NULL)
-        return respond(client, 404, NULL, NOSENDBODY);
-    return respond(client, 200, value, NOSENDBODY);
+        return respond(client, 404, NULL);
+    return respond(client, 200, value);
 }
 
 int32_t get(int32_t client, const char* key) {
@@ -28,28 +28,28 @@ int32_t get(int32_t client, const char* key) {
     if (value == NULL) {
         char body[22 + MAX_KEY_LEN + 1];
         snprintf(body, sizeof(body), "No value set for key %s", key);
-        return respond(client, 404, body, SENDBODY);
+        return respond(client, 404, body);
     }
-    return respond(client, 200, value, SENDBODY);
+    return respond(client, 200, value);
 }
 
 int32_t put(int32_t client, const char* key, const char* value) {
     if (cache_insert(db_cache, key, value) == -1)
-        return respond(client, 500, "Could not insert entry", SENDBODY);
-    if (cache_flush(db_cache) == -1)    //TODO: make flushing a background task
-        return respond(client, 500, "Database file could not be opened and loaded", SENDBODY);
-    return respond(client, 200, value, SENDBODY);
+        return respond(client, 500, "Could not insert entry");
+    if (cache_flush(db_cache) == -1)
+        return respond(client, 500, "Database file could not be opened and loaded");
+    return respond(client, 200, value);
 }
 
 int32_t handle_delete(int32_t client, const char* key) {
     if (cache_remove(db_cache, key) == (int32_t)-1) {
         char body[22 + MAX_KEY_LEN + 1];
         snprintf(body, sizeof(body), "No entry for key %s", key);
-        return respond(client, 404, body, SENDBODY);
+        return respond(client, 404, body);
     }
-    if (cache_flush(db_cache) == -1)    //TODO: make flushing a background task
-        return respond(client, 500, "Database file could not be opened and loaded", SENDBODY);
-    return respond(client, 200, "Entry successfully deleted", SENDBODY);
+    if (cache_flush(db_cache) == -1)
+        return respond(client, 500, "Database file could not be opened and loaded");
+    return respond(client, 200, "Entry successfully deleted");
 }
 
 
@@ -58,8 +58,8 @@ int32_t handle_delete(int32_t client, const char* key) {
 int32_t get_all(int32_t client, __attribute__((unused)) const char* key) {
     const char* all = cache_getall(db_cache);
     if (all == NULL)
-        return respond(client, 503, "Internal Server Error", SENDBODY);
-    return respond(client, 200, all, SENDBODY);
+        return respond(client, 503, "Internal Server Error");
+    return respond(client, 200, all);
 }
 
 /* TODO: implement -> support multiple keys for get bulk
@@ -74,10 +74,10 @@ int32_t get_bulk(int32_t client, const char* keys[]);
 int32_t get_count(int32_t client, __attribute__((unused)) const char* key) {
     int32_t count = cache_len(db_cache);
     if (count == -1)
-        return respond(client, 503, "Internal Server Error", SENDBODY);
+        return respond(client, 503, "Internal Server Error");
     char body[128];
     snprintf(body, sizeof(body), "DB contains %i entries", count);
-    return respond(client, 200, body, SENDBODY);
+    return respond(client, 200, body);
 }
 
 
@@ -85,8 +85,8 @@ int32_t get_count(int32_t client, __attribute__((unused)) const char* key) {
 
 int32_t get_health(int32_t client, __attribute__((unused)) const char* key) {
     if (db_cache->db == NULL)
-        return respond(client, 503, "Service unavailable", SENDBODY);
-    return respond(client, 200, "{\"status\": \"ok\"}", SENDBODY);
+        return respond(client, 503, "Service unavailable");
+    return respond(client, 200, "{\"status\": \"ok\"}");
 }
 
 
@@ -116,7 +116,7 @@ int32_t run_app() {
 int main(int argc, char* argv[]) {
     if (load_configs(argc, argv) == (int32_t)-1)
         exit(ceriousapi_rpelog_server_error("could not load configs", DBNAME));
-    if (ceriousapi_setopt(HOST, PORT, LOG_LEVEL) == (int32_t)-1)
+    if (ceriousapi_setconf(HOST, PORT, LOG_LEVEL) == (int32_t)-1)
         exit(ceriousapi_rpelog_server_error("could not set server options", DBNAME));
     exit((int)run_app());
 }
