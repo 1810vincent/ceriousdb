@@ -2,6 +2,7 @@
 
 #include "interface.h"
 
+#include "ceriousdb.h"
 #include <ceriousapi/ceriousapi.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -104,7 +105,7 @@ void interface_printline(void) {
 
 static bool interpret_command(char* input_buffer) {
     if ((strcmp(input_buffer, "q") == 0) || (strcmp(input_buffer, "stop") == 0))
-        return ceriousapi_rtlog_server_info("stopping server...", "CeriousDB/Interface");
+        return ceriousapi_rtlog_server_info("stopping server...", DBINTERFACENAME);
     else
         printf("\33[31munknown command: %s\33[0m\n", input_buffer);
     return false;

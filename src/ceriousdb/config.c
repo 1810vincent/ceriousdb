@@ -1,5 +1,6 @@
 #include "config.h"
 
+#include "ceriousdb.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -16,7 +17,7 @@ int32_t PORT = PORT_DEFAULT;
 
 static int32_t load_configs_from_env() {
     if (load_dotenv((int32_t)1) == (int32_t)-1)
-        return ceriousapi_relog_server_error("could not load .env file", "CeriousDB/Config");
+        return ceriousapi_relog_server_error("could not load .env file", DBCONFIGNAME);
     snprintf(DB_FILE, sizeof(DB_FILE), "%s", get_env("CERIOUSDB_DB_FILE", DB_FILE_DEFAULT));
     snprintf(LOG_LEVEL, sizeof(LOG_LEVEL), "%s", get_env("LOG_LEVEL", LOG_LEVEL_DEFAULT));
     snprintf(HOST, sizeof(HOST), "%s", get_env("CERIOUSDB_HOST", HOST_DEFAULT));
@@ -49,16 +50,16 @@ static int32_t load_configs_from_arg(int argc, char* argv[]) {
                 if ((PORT <= (int32_t)0) || (PORT > (int32_t)65535)) {
                     char error_msg[64];
                     snprintf(error_msg, sizeof(error_msg), "invalid port: %i", PORT);
-                    return ceriousapi_relog_server_error(error_msg, "CeriousDB/Config");
+                    return ceriousapi_relog_server_error(error_msg, DBCONFIGNAME);
                 }
                 else if ((PORT >= 1) && (PORT <= 1023)) {
                     char error_msg[128];
                     snprintf(error_msg, sizeof(error_msg), "using privileged port (needs sudo privileges) (1 - 1023): %i", PORT);
-                    ceriousapi_log_server_warning(error_msg, "CeriousDB/Config");
+                    ceriousapi_log_server_warning(error_msg, DBCONFIGNAME);
                 }
                 break;
             default:
-                return ceriousapi_relog_server_error("unsupported argument server option", "CeriousDB/Config");
+                return ceriousapi_relog_server_error("unsupported argument server option", DBCONFIGNAME);
         }
     }
     return (int32_t)0;
@@ -66,8 +67,8 @@ static int32_t load_configs_from_arg(int argc, char* argv[]) {
 
 int32_t load_configs(int argc, char* argv[]) {
     if (load_configs_from_env() == (int32_t)-1)
-        return ceriousapi_relog_server_error("could not load configs from env", "CeriousDB/Config");
+        return ceriousapi_relog_server_error("could not load configs from env", DBCONFIGNAME);
     if (load_configs_from_arg(argc, argv) == (int32_t)-1)
-        return ceriousapi_relog_server_error("could not load configs from arg", "CeriousDB/Config");
+        return ceriousapi_relog_server_error("could not load configs from arg", DBCONFIGNAME);
     return (int32_t)0;
 }

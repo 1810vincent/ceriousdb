@@ -1,4 +1,4 @@
-#define DBNAME "CeriousDB(v0.1.0)"
+#include "ceriousdb.h"
 
 #include <stdint.h>
 #include <pthread.h>
